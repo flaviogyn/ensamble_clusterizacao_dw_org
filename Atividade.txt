@@ -1,0 +1,13 @@
+Ensamble: clusterização de clientes com Regras de Associação
+
+Combinar clusterização de clientes com Regras de Associação é uma estratégia extremamente poderosa para análises de CRM e marketing. A ideia central é simples: em vez de aplicar as regras de associação em toda a base de transações (o que pode gerar milhares de regras genéricas e pouco acionáveis), você segmenta os clientes primeiro e, em seguida, descobre padrões de compra específicos para cada grupo.
+
+Portanto, de posse do DW Organizacional ou Datamart construído para esse fim, povoar o BD e aplicar o conceito de ensemble (aprendizagem por conjuntos):
+
+1) Utilizar dados para clusterizar ou classificar os clientes
+
+2)  De posse das compras por por grupo/classe, aplicar as Regras de Descoberta de Associação entre produtos.
+
+Obs: Para o trabalho pode-se utilizar as ferramentas das bibliotecas Python. 
+
+Entregáveis: Código e relatório técnico do processo.
