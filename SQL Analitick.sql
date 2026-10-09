@@ -247,7 +247,7 @@ ORDER BY
     fv.id_origem_registro,
     dp.produto;
 
--- Criar a VIEW para o Apriori
+-- Criar a VIEW para o Apriori v1
 CREATE OR REPLACE VIEW dm_vendas.vw_compras_por_cluster AS
 SELECT
     cc.cluster,
@@ -264,12 +264,72 @@ INNER JOIN dm_vendas.fato_vendas fv
 INNER JOIN dm_vendas.dim_produto dp
     ON dp.id_produto_dw = fv.id_produto_dw;
 
+select *
+  from dm_vendas.fato_vendas fv;
+
+-- Criar a VIEW para o Apriori v2 (erro encontrado)
+CREATE OR REPLACE VIEW dm_vendas.vw_compras_por_cluster AS
+SELECT
+    cc.cluster,
+    fv.id_cliente_dw,
+    COALESCE(
+        'M_'  || dw.id_venda::TEXT,
+        'NW_' || dw.id_order::TEXT
+    )::VARCHAR(100) AS id_transacao,
+    fv.id_produto_dw,
+    dp.produto,
+    dp.categoria,
+    fv.quantidade,
+    fv.valor_liquido
+FROM dm_vendas.cliente_cluster cc
+INNER JOIN dm_vendas.fato_vendas fv
+    ON fv.id_cliente_dw = cc.id_cliente_dw
+INNER JOIN dw_organizacional.fato_vendas dw
+    ON dw.id_fato_venda_dw = fv.id_fato_venda_dw
+INNER JOIN dm_vendas.dim_produto dp
+    ON dp.id_produto_dw = fv.id_produto_dw;
+
+-- Criar a VIEW para o Apriori v3
+-- Recriar a view com o agrupador unificado de transação
+CREATE OR REPLACE VIEW dm_vendas.vw_compras_por_cluster AS
+SELECT
+    cc.cluster,
+    fv.id_cliente_dw,
+    -- Identificador unificado por sistema de origem + número do pedido
+    (fv.sistema_origem || '_' || COALESCE(dw.id_venda, dw.id_order)::TEXT)::VARCHAR(100) AS id_transacao,
+    fv.id_produto_dw,
+    dp.produto,
+    dp.categoria,
+    fv.quantidade,
+    fv.valor_liquido
+FROM dm_vendas.cliente_cluster cc
+INNER JOIN dm_vendas.fato_vendas fv
+    ON fv.id_cliente_dw = cc.id_cliente_dw
+-- JOIN com o DW Integrado para acessar os pedidos originais (id_venda e id_order)
+INNER JOIN dw_organizacional.fato_vendas dw
+    ON dw.id_fato_venda_dw = fv.id_fato_venda_dw
+INNER JOIN dm_vendas.dim_produto dp
+    ON dp.id_produto_dw = fv.id_produto_dw;
+
+
 SELECT *
 FROM dm_vendas.vw_compras_por_cluster
 ORDER BY
     cluster,
     id_cliente_dw,
     id_transacao;
+
+-- Conferir amostra dos dados agrupados na view
+SELECT 
+    cluster,
+    id_transacao,
+    COUNT(*) AS total_itens_na_cesta,
+    STRING_AGG(produto, ', ') AS produtos
+FROM dm_vendas.vw_compras_por_cluster
+GROUP BY cluster, id_transacao
+ORDER BY cluster, id_transacao
+LIMIT 10;
+
 
 SELECT column_name
 FROM information_schema.columns
@@ -298,6 +358,17 @@ SELECT
 FROM dm_vendas.fato_vendas;
 
 
+SELECT
+    cluster,
+    COUNT(*) AS linhas,
+    COUNT(DISTINCT id_transacao) AS transacoes,
+    COUNT(DISTINCT id_produto_dw) AS produtos,
+    COUNT(DISTINCT (id_transacao, id_produto_dw))
+        AS pares_transacao_produto
+FROM dm_vendas.vw_compras_por_cluster
+GROUP BY cluster
+ORDER BY cluster;
+
 -- Suporte = Número de registros com X e Y / Número total de registros
 -- verificar se é por venda os produtos
 select produto, qtd, total_registros, ROUND((qtd::numeric / total_registros) * 100, 4) as suporte
@@ -308,6 +379,19 @@ from (select dp.produto,
 	  	   inner join dim_produto dp on fv.id_produto_dw = dp.id_produto_dw
 	  group by dp.produto)
  order by 4 desc;
+
+SELECT
+    cluster,
+    id_transacao,
+    id_cliente_dw,
+    COUNT(DISTINCT id_produto_dw) AS produtos_na_transacao
+FROM dm_vendas.vw_compras_por_cluster
+GROUP BY
+    cluster,
+    id_transacao,
+    id_cliente_dw
+ORDER BY produtos_na_transacao DESC
+LIMIT 30;
 
 
 

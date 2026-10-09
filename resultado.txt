@@ -1,0 +1,274 @@
+======================================================================
+DADOS CARREGADOS
+======================================================================
+   cluster  id_cliente_dw  id_transacao  id_produto_dw                      produto   categoria  quantidade  valor_liquido
+0        0           1529  MERCEARIA_51            911   Detergente 500ml - Marca A   Conservas         6.0         306.72
+1        0           1529  MERCEARIA_51            948  Agua Mineral 1.5L - Marca C    Temperos         4.0          93.24
+2        0           1529  MERCEARIA_51            955  Agua Sanitaria 1L - Marca E  Utilidades         6.0         218.40
+3        0           1529  MERCEARIA_51            962      Escova Dental - Marca B       Oleos         8.0         395.92
+4        0           1529  MERCEARIA_51            969          Cafe 500g - Marca D   Embutidos         2.0         125.16
+
+Total de registros: 3155
+
+Clusters encontrados:
+[np.int64(0), np.int64(1), np.int64(2), np.int64(3)]
+
+
+======================================================================
+ANÁLISE DO CLUSTER 0
+======================================================================
+Clientes: 100
+Transações: 100
+Produtos diferentes: 100
+Cestas criadas: 100
+Colunas de produtos na matriz: 40
+
+Top 20 produtos por quantidade de transações:
+Achocolatado 400g - Marca A          30
+Acucar 1kg - Marca C                 30
+Atum 170g - Marca E                  30
+Arroz 5kg - Marca A                  30
+Biscoito Cream Cracker - Marca D     30
+Farinha de Trigo 1kg - Marca C       30
+Cafe 500g - Marca D                  30
+Biscoito Recheado - Marca E          30
+Queijo Mussarela 500g - Marca D      30
+Sardinha 125g - Marca D              30
+Presunto 500g - Marca E              30
+Macarrao Espaguete 500g - Marca B    30
+Feijao Carioca 1kg - Marca B         30
+Leite Integral 1L - Marca E          30
+Ervilha 200g - Marca C               30
+Manteiga 200g - Marca C              30
+Molho de Tomate 340g - Marca A       30
+Milho Verde 200g - Marca B           30
+Margarina 500g - Marca B             30
+Oleo de Soja 900ml - Marca A         30
+
+Maior frequência de um produto:
+30
+
+Produtos que atingem suporte de 5%:
+40
+
+Produtos que atingem suporte de 1%:
+40
+
+Conjuntos frequentes:
+                         produtos  tamanho  support
+              Cafe 500g - Marca D        1      0.3
+              Arroz 5kg - Marca A        1      0.3
+      Achocolatado 400g - Marca A        1      0.3
+     Feijao Carioca 1kg - Marca B        1      0.3
+           Ervilha 200g - Marca C        1      0.3
+   Farinha de Trigo 1kg - Marca C        1      0.3
+         Margarina 500g - Marca B        1      0.3
+       Milho Verde 200g - Marca B        1      0.3
+   Molho de Tomate 340g - Marca A        1      0.3
+     Oleo de Soja 900ml - Marca A        1      0.3
+          Presunto 500g - Marca E        1      0.3
+  Queijo Mussarela 500g - Marca D        1      0.3
+ Biscoito Cream Cracker - Marca D        1      0.3
+             Acucar 1kg - Marca C        1      0.3
+              Atum 170g - Marca E        1      0.3
+      Biscoito Recheado - Marca E        1      0.3
+Macarrao Espaguete 500g - Marca B        1      0.3
+      Leite Integral 1L - Marca E        1      0.3
+          Manteiga 200g - Marca C        1      0.3
+          Sardinha 125g - Marca D        1      0.3
+
+Regras de associação:
+ cluster  quantidade_clientes  quantidade_transacoes                                               antecedentes                  consequentes  support  confidence  lift
+       0                  100                    100   Achocolatado 400g - Marca A, Agua Sanitaria 1L - Marca E   Agua Mineral 1.5L - Marca C     0.16         1.0   5.0
+       0                  100                    100            Acucar 1kg - Marca C, Desinfetante 1L - Marca D    Creme Dental 90g - Marca A     0.16         1.0   5.0
+       0                  100                    100       Agua Mineral 1.5L - Marca C, Escova Dental - Marca B   Agua Sanitaria 1L - Marca E     0.16         1.0   5.0
+       0                  100                    100           Agua Sanitaria 1L - Marca E, Cafe 500g - Marca D       Escova Dental - Marca B     0.16         1.0   5.0
+       0                  100                    100       Amaciante 2L - Marca C, Feijao Carioca 1kg - Marca B Condicionador 350ml - Marca E     0.16         1.0   5.0
+       0                  100                    100   Condicionador 350ml - Marca E, Iogurte Natural - Marca A        Amaciante 2L - Marca C     0.16         1.0   5.0
+       0                  100                    100            Amaciante 2L - Marca C, Sardinha 125g - Marca D     Iogurte Natural - Marca A     0.16         1.0   5.0
+       0                  100                    100             Arroz 5kg - Marca A, Sabao em Po 1kg - Marca B       Shampoo 350ml - Marca D     0.16         1.0   5.0
+       0                  100                    100             Atum 170g - Marca E, Desinfetante 1L - Marca D     Refrigerante 2L - Marca B     0.16         1.0   5.0
+       0                  100                    100             Cerveja 350ml - Marca E, Esponja 3un - Marca D    Papel Toalha 2un - Marca B     0.16         1.0   5.0
+       0                  100                    100        Manteiga 200g - Marca C, Papel Toalha 2un - Marca B       Cerveja 350ml - Marca E     0.16         1.0   5.0
+       0                  100                    100      Creme Dental 90g - Marca A, Refrigerante 2L - Marca B     Desinfetante 1L - Marca D     0.16         1.0   5.0
+       0                  100                    100 Leite Integral 1L - Marca E, Papel Higienico 4un - Marca A         Desodorante - Marca C     0.16         1.0   5.0
+       0                  100                    100            Desodorante - Marca C, Suco de Uva 1L - Marca D Papel Higienico 4un - Marca A     0.16         1.0   5.0
+       0                  100                    100    Queijo Mussarela 500g - Marca D, Sabonete 90g - Marca C    Detergente 500ml - Marca A     0.16         1.0   5.0
+       0                  100                    100     Detergente 500ml - Marca A, Saco de Lixo 30L - Marca E        Sabonete 90g - Marca C     0.16         1.0   5.0
+       0                  100                    100   Oleo de Soja 900ml - Marca A, Papel Toalha 2un - Marca B         Esponja 3un - Marca D     0.16         1.0   5.0
+       0                  100                    100  Macarrao Espaguete 500g - Marca B, Sabonete 90g - Marca C    Saco de Lixo 30L - Marca E     0.16         1.0   5.0
+       0                  100                    100    Margarina 500g - Marca B, Papel Higienico 4un - Marca A      Suco de Uva 1L - Marca D     0.16         1.0   5.0
+       0                  100                    100           Presunto 500g - Marca E, Shampoo 350ml - Marca D     Sabao em Po 1kg - Marca B     0.16         1.0   5.0
+
+
+======================================================================
+ANÁLISE DO CLUSTER 1
+======================================================================
+Clientes: 39
+Transações: 478
+Produtos diferentes: 77
+Cestas criadas: 478
+Colunas de produtos na matriz: 77
+
+Top 20 produtos por quantidade de transações:
+Gorgonzola Telino                  34
+Gnocchi di nonna Alice             31
+Raclette Courdavault               31
+Camembert Pierrot                  30
+Flotemysost                        29
+Guaraná Fantástica                 29
+Tarte au sucre                     29
+Pavlova                            28
+Chang                              27
+Jack's New England Clam Chowder    26
+Rhönbräu Klosterbier               26
+Pâté chinois                       25
+Alice Mutton                       24
+Inlagd Sill                        24
+Boston Crab Meat                   24
+Outback Lager                      23
+Queso Cabrales                     23
+Manjimup Dried Apples              23
+Tourtière                          23
+Gudbrandsdalsost                   23
+
+Maior frequência de um produto:
+34
+
+Produtos que atingem suporte de 5%:
+15
+
+Produtos que atingem suporte de 1%:
+72
+Nenhuma regra encontrada com confiança >= 0.30
+
+
+======================================================================
+ANÁLISE DO CLUSTER 2
+======================================================================
+Clientes: 3
+Transações: 89
+Produtos diferentes: 74
+Cestas criadas: 89
+Colunas de produtos na matriz: 74
+
+Top 20 produtos por quantidade de transações:
+Chang                               10
+Camembert Pierrot                    9
+Gorgonzola Telino                    9
+Singaporean Hokkien Fried Mee        8
+Konbu                                8
+Steeleye Stout                       8
+Wimmers gute Semmelknödel            8
+Alice Mutton                         7
+Pavlova                              7
+Guaraná Fantástica                   7
+Raclette Courdavault                 7
+Flotemysost                          7
+Thüringer Rostbratwurst              6
+Rhönbräu Klosterbier                 6
+Gnocchi di nonna Alice               6
+Geitost                              6
+Boston Crab Meat                     6
+Tarte au sucre                       6
+Jack's New England Clam Chowder      6
+Louisiana Fiery Hot Pepper Sauce     5
+
+Maior frequência de um produto:
+10
+
+Produtos que atingem suporte de 5%:
+27
+
+Produtos que atingem suporte de 1%:
+74
+Nenhuma regra encontrada com confiança >= 0.30
+
+
+======================================================================
+ANÁLISE DO CLUSTER 3
+======================================================================
+Clientes: 47
+Transações: 263
+Produtos diferentes: 76
+Cestas criadas: 263
+Colunas de produtos na matriz: 76
+
+Top 20 produtos por quantidade de transações:
+Raclette Courdavault               16
+Guaraná Fantástica                 15
+Jack's New England Clam Chowder    15
+Konbu                              14
+Lakkalikööri                       14
+Original Frankfurter grüne Soße    14
+Rhönbräu Klosterbier               14
+Sir Rodney's Scones                14
+Teatime Chocolate Biscuits         13
+Tarte au sucre                     13
+Queso Cabrales                     13
+Mozzarella di Giovanni             13
+Gnocchi di nonna Alice             13
+Filo Mix                           13
+Outback Lager                      12
+Camembert Pierrot                  12
+Manjimup Dried Apples              12
+Perth Pasties                      11
+Boston Crab Meat                   11
+Rössle Sauerkraut                  11
+
+Maior frequência de um produto:
+16
+
+Produtos que atingem suporte de 5%:
+8
+
+Produtos que atingem suporte de 1%:
+68
+Nenhuma regra encontrada com confiança >= 0.30
+
+
+======================================================================
+RESULTADO FINAL DA DESCOBERTA DE ASSOCIAÇÃO
+======================================================================
+Total de regras encontradas: 3804
+
+Top 30 regras:
+ cluster  quantidade_clientes  quantidade_transacoes                                                  antecedentes                  consequentes  support  confidence  lift
+       0                  100                    100      Achocolatado 400g - Marca A, Agua Sanitaria 1L - Marca E   Agua Mineral 1.5L - Marca C     0.16         1.0   5.0
+       0                  100                    100               Acucar 1kg - Marca C, Desinfetante 1L - Marca D    Creme Dental 90g - Marca A     0.16         1.0   5.0
+       0                  100                    100          Agua Mineral 1.5L - Marca C, Escova Dental - Marca B   Agua Sanitaria 1L - Marca E     0.16         1.0   5.0
+       0                  100                    100              Agua Sanitaria 1L - Marca E, Cafe 500g - Marca D       Escova Dental - Marca B     0.16         1.0   5.0
+       0                  100                    100          Amaciante 2L - Marca C, Feijao Carioca 1kg - Marca B Condicionador 350ml - Marca E     0.16         1.0   5.0
+       0                  100                    100      Condicionador 350ml - Marca E, Iogurte Natural - Marca A        Amaciante 2L - Marca C     0.16         1.0   5.0
+       0                  100                    100               Amaciante 2L - Marca C, Sardinha 125g - Marca D     Iogurte Natural - Marca A     0.16         1.0   5.0
+       0                  100                    100                Arroz 5kg - Marca A, Sabao em Po 1kg - Marca B       Shampoo 350ml - Marca D     0.16         1.0   5.0
+       0                  100                    100                Atum 170g - Marca E, Desinfetante 1L - Marca D     Refrigerante 2L - Marca B     0.16         1.0   5.0
+       0                  100                    100                Cerveja 350ml - Marca E, Esponja 3un - Marca D    Papel Toalha 2un - Marca B     0.16         1.0   5.0
+       0                  100                    100           Manteiga 200g - Marca C, Papel Toalha 2un - Marca B       Cerveja 350ml - Marca E     0.16         1.0   5.0
+       0                  100                    100         Creme Dental 90g - Marca A, Refrigerante 2L - Marca B     Desinfetante 1L - Marca D     0.16         1.0   5.0
+       0                  100                    100    Leite Integral 1L - Marca E, Papel Higienico 4un - Marca A         Desodorante - Marca C     0.16         1.0   5.0
+       0                  100                    100               Desodorante - Marca C, Suco de Uva 1L - Marca D Papel Higienico 4un - Marca A     0.16         1.0   5.0
+       0                  100                    100       Queijo Mussarela 500g - Marca D, Sabonete 90g - Marca C    Detergente 500ml - Marca A     0.16         1.0   5.0
+       0                  100                    100        Detergente 500ml - Marca A, Saco de Lixo 30L - Marca E        Sabonete 90g - Marca C     0.16         1.0   5.0
+       0                  100                    100      Oleo de Soja 900ml - Marca A, Papel Toalha 2un - Marca B         Esponja 3un - Marca D     0.16         1.0   5.0
+       0                  100                    100     Macarrao Espaguete 500g - Marca B, Sabonete 90g - Marca C    Saco de Lixo 30L - Marca E     0.16         1.0   5.0
+       0                  100                    100       Margarina 500g - Marca B, Papel Higienico 4un - Marca A      Suco de Uva 1L - Marca D     0.16         1.0   5.0
+       0                  100                    100              Presunto 500g - Marca E, Shampoo 350ml - Marca D     Sabao em Po 1kg - Marca B     0.16         1.0   5.0
+       0                  100                    100          Achocolatado 400g - Marca A, Escova Dental - Marca B   Agua Mineral 1.5L - Marca C     0.14         1.0   5.0
+       0                  100                    100          Achocolatado 400g - Marca A, Escova Dental - Marca B   Agua Sanitaria 1L - Marca E     0.14         1.0   5.0
+       0                  100                    100               Acucar 1kg - Marca C, Refrigerante 2L - Marca B    Creme Dental 90g - Marca A     0.14         1.0   5.0
+       0                  100                    100               Acucar 1kg - Marca C, Refrigerante 2L - Marca B     Desinfetante 1L - Marca D     0.14         1.0   5.0
+       0                  100                    100 Agua Sanitaria 1L - Marca E, Biscoito Cream Cracker - Marca D   Agua Mineral 1.5L - Marca C     0.14         1.0   5.0
+       0                  100                    100              Agua Mineral 1.5L - Marca C, Cafe 500g - Marca D   Agua Sanitaria 1L - Marca E     0.14         1.0   5.0
+       0                  100                    100              Agua Mineral 1.5L - Marca C, Cafe 500g - Marca D       Escova Dental - Marca B     0.14         1.0   5.0
+       0                  100                    100   Agua Sanitaria 1L - Marca E, Molho de Tomate 340g - Marca A       Escova Dental - Marca B     0.14         1.0   5.0
+       0                  100                    100      Amaciante 2L - Marca C, Biscoito Cream Cracker - Marca D Condicionador 350ml - Marca E     0.14         1.0   5.0
+       0                  100                    100        Condicionador 350ml - Marca E, Sardinha 125g - Marca D        Amaciante 2L - Marca C     0.14         1.0   5.0
+
+Arquivo gerado: regras_associacao_por_cluster.csv
+
+======================================================================
+GRAVANDO NO BANCO DE DADOS
+======================================================================
+Tabela dm_vendas.regras_associacao verificada.
+3804 regras gravadas com sucesso.

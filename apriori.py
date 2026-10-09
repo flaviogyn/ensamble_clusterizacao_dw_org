@@ -46,7 +46,6 @@ ORDER BY cluster, id_cliente_dw, id_transacao;
 
 df = pd.read_sql(sql, engine)
 
-
 print("\n" + "=" * 70)
 print("DADOS CARREGADOS")
 print("=" * 70)
@@ -75,9 +74,7 @@ colunas_obrigatorias = [
 ]
 
 for coluna in colunas_obrigatorias:
-
     if coluna not in df.columns:
-
         raise ValueError(
             f"A coluna '{coluna}' não existe na view."
         )
@@ -101,25 +98,34 @@ df["cluster"] = df["cluster"].astype(int)
 
 # Produto/conjunto precisa aparecer em pelo menos
 # 5% das transações do cluster.
-
 MIN_SUPPORT = 0.05
 
 # Pelo menos 30% das transações que possuem
 # o antecedente devem possuir o consequente.
-
 MIN_CONFIDENCE = 0.30
 
 # Consideraremos apenas associações positivas.
-
 MIN_LIFT = 1.00
 
+# Teste pois os valores iniciais não estavam retornando dados
+#MIN_SUPPORT = 0.01
+#MIN_CONFIDENCE = 0.20
+#MIN_LIFT = 1.00
+
+# Tabela de validação
+# Com suporte de 1%, o conjunto precisará aparecer em aproximadamente 6 transações do Cluster 3.
+# Suporte mínimo	Transações necessárias no Cluster 3
+#   5%  	            29
+#   3%  	            18
+#   2%  	            12
+#   1%  	            6
+# Esses valores são aproximados; o suporte efetivo é calculado sobre as 573 cestas.
 
 # ============================================================
 # 5. FUNÇÃO APRIORI
 # ============================================================
 
 def executar_apriori_cluster(df_cluster, cluster_id):
-
     print("\n")
     print("=" * 70)
     print(f"ANÁLISE DO CLUSTER {cluster_id}")
@@ -185,11 +191,9 @@ def executar_apriori_cluster(df_cluster, cluster_id):
     # significativa com menos de 2 transações.
 
     if len(transacoes) < 2:
-
         print(
             "Cluster possui poucas transações."
         )
-
         return None
 
     # --------------------------------------------------------
@@ -214,16 +218,48 @@ def executar_apriori_cluster(df_cluster, cluster_id):
         f"{len(df_transacoes.columns)}"
     )
 
+    # Verificar frequência individual dos produtos
+    frequencia_produtos = (
+        df_transacoes.sum()
+        .sort_values(ascending=False)
+    )
+
+    print("\nTop 20 produtos por quantidade de transações:")
+
+    print(
+        frequencia_produtos.head(20).to_string()
+    )
+
+    print("\nMaior frequência de um produto:")
+    print(frequencia_produtos.max())
+
+    print("\nProdutos que atingem suporte de 5%:")
+    print(
+        (frequencia_produtos >= quantidade_transacoes * 0.05).sum()
+    )
+
+    print("\nProdutos que atingem suporte de 1%:")
+    print(
+        (frequencia_produtos >= quantidade_transacoes * 0.01).sum()
+    )
+
     # --------------------------------------------------------
     # APRIORI
     # --------------------------------------------------------
 
+    # Frequent itemsets com suporte de 0.05
+    # frequent_itemsets = apriori(
+    #     df_transacoes,
+    #     min_support=MIN_SUPPORT,
+    #     use_colnames=True
+    # )
+
     frequent_itemsets = apriori(
         df_transacoes,
         min_support=MIN_SUPPORT,
-        use_colnames=True
+        use_colnames=True,
+        max_len=3
     )
-
     if frequent_itemsets.empty:
 
         print(
@@ -473,7 +509,6 @@ else:
 # ============================================================
 
 if not df_regras.empty:
-
     df_regras.to_csv(
         "regras_associacao_por_cluster.csv",
         index=False,

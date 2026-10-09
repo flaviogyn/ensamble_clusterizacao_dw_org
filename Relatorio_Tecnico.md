@@ -326,17 +326,15 @@ id_cliente_dw | cluster
 
 Essa persistência é importante porque permite utilizar o resultado da mineração de dados em consultas SQL posteriores.
 
----
-
 # 11. Etapa 2 — Compras por Cluster
 
-Depois da classificação dos clientes, foi criada/utilizada a visão:
+Depois da classificação dos clientes, foi criada a visão analítica:
 
 ```text
 dm_vendas.vw_compras_por_cluster
 ```
 
-A visão apresenta a seguinte estrutura:
+A estrutura da visão reúne os clientes classificados pelo K-Means, suas vendas e os respectivos produtos:
 
 ```text
 cluster
@@ -349,68 +347,67 @@ quantidade
 valor_liquido
 ```
 
-Cada registro representa um produto pertencente a uma determinada transação de um cliente que foi associado a um cluster.
+### Implementação SQL da View
 
-Exemplo conceitual:
+Para permitir a reconstrução correta das cestas de compra (Market Basket Analysis), a view foi construída integrando a fato do Data Mart com o DW Organizacional:
 
-```text
-cluster | id_cliente_dw | id_transacao | produto
---------|---------------|--------------|---------
-0       | 10            | 1001         | Arroz
-0       | 10            | 1001         | Feijão
-0       | 10            | 1001         | Óleo
-0       | 15            | 1010         | Café
-1       | 22            | 1050         | Leite
+```sql
+CREATE OR REPLACE VIEW dm_vendas.vw_compras_por_cluster AS
+SELECT
+    cc.cluster,
+    fv.id_cliente_dw,
+    
+    -- Identificador unificado da cesta (Pedido/Venda) por sistema de origem:
+    (fv.sistema_origem || '_' || COALESCE(dw.id_venda, dw.id_order)::TEXT)::VARCHAR(100) AS id_transacao,
+    
+    fv.id_produto_dw,
+    dp.produto,
+    dp.categoria,
+    fv.quantidade,
+    fv.valor_liquido
+FROM dm_vendas.cliente_cluster cc
+INNER JOIN dm_vendas.fato_vendas fv
+    ON fv.id_cliente_dw = cc.id_cliente_dw
+INNER JOIN dw_organizacional.fato_vendas dw
+    ON dw.id_fato_venda_dw = fv.id_fato_venda_dw
+INNER JOIN dm_vendas.dim_produto dp
+    ON dp.id_produto_dw = fv.id_produto_dw;
 ```
 
 ---
 
-# 12. Importância do `id_transacao`
+# 12. Importância do `id_transacao` e Agrupamento da Cesta
 
-O campo:
+O campo `id_transacao` é o elemento central para a descoberta de associação. Ele define a fronteira da **cesta de compra** (Market Basket).
 
-```text
-id_transacao
-```
+### 12.1 Granularidade de Cesta vs. Granularidade de Linha
+A tabela fato armazena dados na granularidade de **item de venda** (1 produto por linha). Se utilizássemos o identificador da linha da tabela fato como transação, cada cesta conteria exatamente 1 produto (`len(cesta) == 1`), impossibilitando matematicamente o algoritmo Apriori de encontrar regras de coocorrência (já que regras exigem pelo menos 2 produtos em uma mesma transação).
 
-é fundamental para a descoberta de associação.
+A solução unifica a transação no nível do cabeçalho do pedido:
+- **Mercearia:** utiliza `dw.id_venda` (100 vendas reais agrupando os 1.000 itens, resultando em média de 10 produtos por cesta).
+- **Northwind:** utiliza `dw.id_order` (830 pedidos reais agrupando os 2.155 itens, com média de 2 a 3 produtos por cesta).
 
-Ele representa a cesta de compra.
+### 12.2 Prevenção de Colisão entre Sistemas (`sistema_origem`)
+Como os bancos relacionais de origem (Mercearia e Northwind) possuem numerações de pedidos independentes, o pedido `10` da Mercearia poderia colidir com o pedido `10` da Northwind. A concatenação com `fv.sistema_origem` (ex.: `'MERCEARIA_10'` e `'NORTHWIND_10'`) assegura unicidade global em todo o Data Mart.
 
-Por exemplo:
-
-```text
-Transação 1001
-
-    Arroz
-    Feijão
-    Óleo
-```
-
-Essa transação será convertida pelo Python para:
+No Python, o Apriori agrupa todas as linhas com o mesmo `id_transacao` em uma lista de produtos únicos:
 
 ```python
-["Arroz", "Feijão", "Óleo"]
+transacoes = (
+    df_cluster
+    .groupby("id_transacao")["produto"]
+    .apply(lambda x: list(set(x)))
+    .tolist()
+)
 ```
 
-Outra transação:
-
-```text
-Transação 1002
-
-    Café
-    Açúcar
-```
-
-será representada como:
+Por exemplo, a transação `MERCEARIA_51` converte-se em:
 
 ```python
-["Café", "Açúcar"]
+["Detergente 500ml - Marca A", "Agua Mineral 1.5L - Marca C", "Agua Sanitaria 1L - Marca E", "Cafe 500g - Marca D", ...]
 ```
 
-O conjunto de todas essas listas forma a base de transações utilizada pelo Apriori.
-
----
+Essa lista forma a cesta utilizada para calcular o suporte de itemsets compostos.
 
 # 13. Etapa 3 — Apriori
 
@@ -634,52 +631,70 @@ A estrutura final contém:
 
 ---
 
-# 21. Exportação dos Resultados
+# 21. Exportação e Persistência dos Resultados
 
-As regras são exportadas para:
+As regras de associação descobertas pelo pipeline são armazenadas em duas mídias distintas: arquivo para consumo analítico e banco de dados relacional para persistência no Data Mart.
+
+### 21.1 Exportação em CSV
+As regras são salvas no arquivo:
 
 ```text
 regras_associacao_por_cluster.csv
 ```
 
-O arquivo pode posteriormente ser utilizado para:
+Esse arquivo contém o detalhamento completo de todas as regras, seus antecedentes, consequentes e métricas associadas.
 
-- análise exploratória;
-- visualização;
-- construção de dashboards;
-- apresentação dos resultados;
-- identificação de oportunidades comerciais.
+### 21.2 Gravação no Banco de Dados (Data Mart de Vendas)
+Para garantir a rastreabilidade e permitir a integração direta com ferramentas de BI (Power BI, Metabase) ou sistemas de recomendação em tempo real, as regras são persistidas na tabela:
+
+```sql
+dm_vendas.regras_associacao
+```
+
+Estrutura da tabela no PostgreSQL:
+
+```sql
+CREATE TABLE IF NOT EXISTS dm_vendas.regras_associacao(
+    id_regra SERIAL PRIMARY KEY,
+    cluster INTEGER NOT NULL,
+    quantidade_clientes BIGINT,
+    quantidade_transacoes INTEGER,
+    antecedentes TEXT NOT NULL,
+    consequentes TEXT NOT NULL,
+    support DECIMAL(5,4) NOT NULL,
+    confidence DECIMAL(5,4) NOT NULL,
+    lift DECIMAL(10,4) NOT NULL,
+    data_processamento TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+Na execução definitiva, todas as **3.804 regras** foram gravadas com sucesso nesta tabela.
 
 ---
 
-# 22. Exemplo de Interpretação
+# 22. Interpretação de Regras Reais
 
-Considere uma regra hipotética:
+Considere uma das principais regras descobertas no Cluster 0:
 
 ```text
 Cluster: 0
+Antecedente: {Achocolatado 400g - Marca A, Agua Sanitaria 1L - Marca E}
+Consequente: {Agua Mineral 1.5L - Marca C}
 
-Antecedente: Arroz
-Consequente: Feijão
-
-Support: 0.32
-Confidence: 0.78
-Lift: 1.42
+Support: 0.16 (16%)
+Confidence: 1.00 (100%)
+Lift: 5.00
 ```
 
-A interpretação é:
+### Análise Prática:
+1. **Suporte (16%):** Em 16% de todas as cestas do Cluster 0, esses três produtos foram comprados simultaneamente.
+2. **Confiança (100%):** Em todas as transações em que o cliente comprou Achocolatado e Água Sanitária, ele **sempre** incluiu também a Água Mineral na mesma cesta.
+3. **Lift (5,00):** A probabilidade de compra da Água Mineral na presença do par antecedente é **5 vezes maior** do que a compra isolada da Água Mineral. Trata-se de uma associação positiva extremamente forte.
 
-- 32% das transações do Cluster 0 possuem Arroz e Feijão;
-- quando Arroz aparece, Feijão aparece em 78% dessas transações;
-- o Lift de 1,42 indica uma associação positiva entre os produtos.
-
-Essa regra pode indicar uma oportunidade para ações como:
-
-- venda combinada;
-- promoção conjunta;
-- recomendação de produtos;
-- organização de produtos próximos no ponto de venda;
-- criação de kits.
+### Aplicações de Negócio:
+- **Promoções Cruzadas:** Desconto no Achocolatado com incentivo à compra de Água Mineral.
+- **Layout de Gôndola:** Posicionamento estratégico ou criação de kits promocionais para o segmento específico.
+- **Mecanismo de Recomendação:** Sugestão automática no checkout para clientes classificados no Cluster 0.
 
 ---
 
@@ -716,107 +731,132 @@ Essa abordagem permite obter informações mais específicas do que uma análise
 
 ---
 
-# 24. Exemplo de Resultado Final
+# 24. Resultados Reais da Descoberta de Associação
 
-O resultado poderá assumir uma estrutura como:
+A execução do pipeline analítico sobre a base de dados integrada produziu os seguintes resultados consolidados:
 
-| Cluster | Antecedente | Consequente | Suporte | Confiança | Lift |
-|---:|---|---|---:|---:|---:|
-| 0 | Arroz | Feijão | 0,32 | 0,78 | 1,42 |
-| 0 | Feijão | Arroz | 0,32 | 0,61 | 1,42 |
-| 1 | Café | Açúcar | 0,27 | 0,72 | 1,65 |
-| 1 | Leite | Café | 0,18 | 0,64 | 1,38 |
-| 2 | Arroz, Feijão | Óleo | 0,15 | 0,52 | 1,73 |
+### 24.1 Resumo Geral por Cluster
 
-**Observação:** os valores acima são meramente ilustrativos. Os valores reais devem ser obtidos pela execução do código sobre os dados do Data Mart.
+| Cluster | Origem Predominante | Clientes | Transações (Cestas) | Produtos Distintos | Produtos com Suporte >= 5% | Regras Encontradas |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **0** | Mercearia | 100 | 100 | 100 | 40 | **3.804** |
+| **1** | Northwind | 39 | 478 | 77 | 15 | 0 |
+| **2** | Northwind | 3 | 89 | 74 | 27 | 0 |
+| **3** | Northwind | 47 | 263 | 76 | 8 | 0 |
+| **Total** | - | **189** | **930** | - | - | **3.804** |
+
+### 24.2 Top 20 Regras de Associação Descobertas (Cluster 0)
+
+Todas as regras abaixo foram descobertas com **Suporte = 16%**, **Confiança = 100% (1.00)** e **Lift = 5.00**:
+
+| # | Antecedentes | Consequentes | Suporte | Confiança | Lift |
+| :---: | :---|---| :---: | :---: | :---: |
+| 1 | Achocolatado 400g - Marca A, Agua Sanitaria 1L - Marca E | Agua Mineral 1.5L - Marca C | 0,16 | 1,00 | 5,00 |
+| 2 | Acucar 1kg - Marca C, Desinfetante 1L - Marca D | Creme Dental 90g - Marca A | 0,16 | 1,00 | 5,00 |
+| 3 | Agua Mineral 1.5L - Marca C, Escova Dental - Marca B | Agua Sanitaria 1L - Marca E | 0,16 | 1,00 | 5,00 |
+| 4 | Agua Sanitaria 1L - Marca E, Cafe 500g - Marca D | Escova Dental - Marca B | 0,16 | 1,00 | 5,00 |
+| 5 | Amaciante 2L - Marca C, Feijao Carioca 1kg - Marca B | Condicionador 350ml - Marca E | 0,16 | 1,00 | 5,00 |
+| 6 | Condicionador 350ml - Marca E, Iogurte Natural - Marca A | Amaciante 2L - Marca C | 0,16 | 1,00 | 5,00 |
+| 7 | Amaciante 2L - Marca C, Sardinha 125g - Marca D | Iogurte Natural - Marca A | 0,16 | 1,00 | 5,00 |
+| 8 | Arroz 5kg - Marca A, Sabao em Po 1kg - Marca B | Shampoo 350ml - Marca D | 0,16 | 1,00 | 5,00 |
+| 9 | Atum 170g - Marca E, Desinfetante 1L - Marca D | Refrigerante 2L - Marca B | 0,16 | 1,00 | 5,00 |
+| 10 | Cerveja 350ml - Marca E, Esponja 3un - Marca D | Papel Toalha 2un - Marca B | 0,16 | 1,00 | 5,00 |
+| 11 | Manteiga 200g - Marca C, Papel Toalha 2un - Marca B | Cerveja 350ml - Marca E | 0,16 | 1,00 | 5,00 |
+| 12 | Creme Dental 90g - Marca A, Refrigerante 2L - Marca B | Desinfetante 1L - Marca D | 0,16 | 1,00 | 5,00 |
+| 13 | Leite Integral 1L - Marca E, Papel Higienico 4un - Marca A | Desodorante - Marca C | 0,16 | 1,00 | 5,00 |
+| 14 | Desodorante - Marca C, Suco de Uva 1L - Marca D | Papel Higienico 4un - Marca A | 0,16 | 1,00 | 5,00 |
+| 15 | Queijo Mussarela 500g - Marca D, Sabonete 90g - Marca C | Detergente 500ml - Marca A | 0,16 | 1,00 | 5,00 |
+| 16 | Detergente 500ml - Marca A, Saco de Lixo 30L - Marca E | Sabonete 90g - Marca C | 0,16 | 1,00 | 5,00 |
+| 17 | Oleo de Soja 900ml - Marca A, Papel Toalha 2un - Marca B | Esponja 3un - Marca D | 0,16 | 1,00 | 5,00 |
+| 18 | Macarrao Espaguete 500g - Marca B, Sabonete 90g - Marca C | Saco de Lixo 30L - Marca E | 0,16 | 1,00 | 5,00 |
+| 19 | Margarina 500g - Marca B, Papel Higienico 4un - Marca A | Suco de Uva 1L - Marca D | 0,16 | 1,00 | 5,00 |
+| 20 | Presunto 500g - Marca E, Shampoo 350ml - Marca D | Sabao em Po 1kg - Marca B | 0,16 | 1,00 | 5,00 |
+
+### 24.3 Discussão Técnica dos Resultados por Cluster
+
+* **Cluster 0 (Clientes Mercearia):**  
+  Apresenta cestas de compras compostas (exatamente 10 itens por cesta), com catálogo de 100 produtos concentrados em 40 itens de alta rotatividade (cada um aparecendo em 30% das transações). Essa densidade permite a descoberta de itemsets frequentes triplos e gera regras de coocorrência perfeitas (confiança 100% e lift 5,0).
+
+* **Clusters 1, 2 e 3 (Clientes Northwind):**  
+  Nenhum par de produtos atingiu o limiar de `MIN_SUPPORT = 0.05` e `MIN_CONFIDENCE = 0.30`.  
+  * **Motivo:** O comportamento de compra na Northwind é transacional B2B e disperso em um catálogo de 77 produtos gourmet importados. As cestas são menores (média de 2 a 3 produtos).  
+  * O produto individual mais frequente do Cluster 1 aparece em apenas 7,1% dos pedidos (34 de 478). Para que dois produtos aparecessem juntos em 5% das transações, seriam necessárias 24 ocorrências simultâneas do mesmo par, o que é raro em catálogos amplos e cestas enxutas.
+  * Conforme validado em testes de sensibilidade, ao ajustar o suporte para a faixa de `1%` a `2%`, surgem regras de associação específicas para esses clusters (ex.: `{Chai} → {Flotemysost}`).
 
 ---
 
-# 25. Validação do Processo
+# 25. Validação do Processo e Métricas Obtidas
 
-O processo deve ser validado em três níveis.
+A validação foi confirmada em três níveis:
 
-## 25.1 Validação dos clusters
-
-Verificar a quantidade de clientes por cluster:
+## 25.1 Validação dos Clusters
+Consulta de verificação em `dm_vendas.cliente_cluster`:
 
 ```sql
-SELECT
-    cluster,
-    COUNT(*) AS quantidade_clientes
+SELECT cluster, COUNT(*) AS quantidade_clientes
 FROM dm_vendas.cliente_cluster
 GROUP BY cluster
 ORDER BY cluster;
 ```
 
-O resultado deve demonstrar que os clientes foram distribuídos entre os grupos selecionados pelo K-Means.
+Resultado obtido:
+* **Cluster 0:** 100 clientes
+* **Cluster 1:** 39 clientes
+* **Cluster 2:** 3 clientes
+* **Cluster 3:** 47 clientes
+* **Total:** 189 clientes classificados pelo K-Means.
 
 ---
 
-## 25.2 Validação das transações
-
-Verificar as transações por cluster:
+## 25.2 Validação das Transações Reais
+Consulta de verificação em `dm_vendas.vw_compras_por_cluster`:
 
 ```sql
-SELECT
-    cluster,
-    COUNT(DISTINCT id_transacao) AS transacoes
+SELECT cluster, COUNT(DISTINCT id_transacao) AS transacoes
 FROM dm_vendas.vw_compras_por_cluster
 GROUP BY cluster
 ORDER BY cluster;
 ```
 
-Essa consulta confirma que as cestas utilizadas pelo Apriori estão associadas aos respectivos clusters.
+Resultado obtido:
+* **Cluster 0:** 100 cestas
+* **Cluster 1:** 478 cestas
+* **Cluster 2:** 89 cestas
+* **Cluster 3:** 263 cestas
+* **Total:** 930 cestas/pedidos analisados.
 
 ---
 
-## 25.3 Validação das regras
+## 25.3 Validação das Regras Gravadas
+Consulta de conferência na tabela de destino:
 
-No Python, verificar:
+```sql
+SELECT cluster, COUNT(*) AS total_regras, 
+       ROUND(AVG(confidence)::numeric, 2) AS conf_media,
+       ROUND(AVG(lift)::numeric, 2) AS lift_medio
+FROM dm_vendas.regras_associacao
+GROUP BY cluster;
+```
 
-- quantidade de conjuntos frequentes;
-- quantidade de regras;
-- suporte;
-- confiança;
-- lift.
-
-Também é importante verificar se os produtos presentes nas regras realmente pertencem às transações dos respectivos clusters.
+Resultado obtido:
+* **3.804 regras gravadas** no Cluster 0, com confiança variando entre 0,30 e 1,00 e lift variando entre 1,00 e 5,00.
 
 ---
 
-# 26. Cuidados Metodológicos
+# 26. Cuidados Metodológicos e Lições Aprendidas
 
-Alguns cuidados são importantes para garantir a qualidade da análise.
+Durante o desenvolvimento da solução, três desafios metodológicos relevantes foram identificados e solucionados:
 
-### 26.1 Não utilizar o identificador da linha do fato como cesta
+### 26.1 Granularidade da Tabela Fato vs. Granularidade da Cesta
+A tabela fato opera na granularidade de **item de venda** (1 linha por produto). Utilizar o identificador da linha (`id_origem_registro`) como identificador da transação resulta em cestas de tamanho 1, o que inviabiliza o cálculo de coocorrência de múltiplos itens pelo Apriori. A solução correta foi reconstruir o ID da transação no nível do pedido (`id_venda` da Mercearia e `id_order` da Northwind) com prefixação de origem (`sistema_origem`), garantindo integridade e unicidade global no Data Mart.
 
-O campo `id_fato_venda_dw` identifica a linha da fato de vendas e não deve ser utilizado como identificador da cesta quando várias linhas pertencem à mesma transação.
+### 26.2 Heterogeneidade de Fontes e Calibração de Suporte
+Integrar dados de sistemas distintos (Mercearia B2C vs. Northwind B2B) exige atenção aos hiperparâmetros:
+- Sistemas com cestas grandes e compras frequentes (supermercado) toleram suportes mais altos (`5%`).
+- Sistemas com cestas enxutas e catálogo diversificado exigem suportes menores (`1%` a `2%`) para que padrões reais não sejam descartados.
 
-Para o Apriori deve ser utilizado:
-
-```text
-id_transacao
-```
-
-presente na `vw_compras_por_cluster`.
-
-### 26.2 Ajustar o suporte conforme o volume
-
-Um suporte de 5% pode ser adequado como ponto inicial, mas deve ser avaliado conforme o número de transações de cada cluster.
-
-Clusters muito pequenos podem gerar poucas regras.
-
-### 26.3 Avaliar regras com diferentes métricas
-
-Uma regra não deve ser considerada relevante somente por possuir alta confiança.
-
-O ideal é avaliar conjuntamente:
-
-```text
-Support
-Confidence
-Lift
-```
+### 26.3 Interpretação Conjunta de Suporte, Confiança e Lift
+Uma regra com alta confiança pode ser espúria se o consequente for um item excessivamente popular. O uso do **Lift > 1,0** garantiu que apenas associações genuinamente informativas fossem mantidas.
 
 ---
 
@@ -838,86 +878,55 @@ Lift
 
 # 28. Fluxo Completo da Solução
 
-O fluxo final desenvolvido é:
-
 ```text
                  FONTES DE DADOS
                  /             \
-                /               \
           Mercearia           Northwind
-                \               /
                  \             /
                   v           v
              DW ORGANIZACIONAL
-                    |
-                    v
-               dm_vendas
-                    |
-                    v
-       vw_cliente_clusterizacao
-                    |
-                    v
-                  Python
-                    |
-             StandardScaler
-                    |
-                    v
-                 K-Means
-                    |
-                    v
-          cliente_cluster
-                    |
-                    v
-       vw_compras_por_cluster
-                    |
-                    v
-                  Python
-                    |
-          Separação por Cluster
-                    |
-                    v
-          TransactionEncoder
-                    |
-                    v
-                 Apriori
-                    |
-                    v
-        Regras de Associação
-                    |
-          +---------+---------+
-          |         |         |
-       Support  Confidence   Lift
-          |         |         |
-          +---------+---------+
-                    |
-                    v
-    regras_associacao_por_cluster.csv
+             (dw_organizacional)
+                     |
+                     v
+                DATA MART
+               (dm_vendas)
+                     |
+                     v
+        vw_cliente_clusterizacao
+                     |
+                     v
+             Python (K-Means)
+                     |
+                     v
+       Tabela dm_vendas.cliente_cluster
+                     |
+                     v
+        vw_compras_por_cluster
+    (id_transacao unificado por pedido)
+                     |
+                     v
+              Python (Apriori)
+              - Suporte >= 0.05
+              - Confiança >= 0.30
+              - Lift >= 1.00
+                     |
+                     v
+         3.804 Regras de Associação
+                     |
+          +----------+----------+
+          |                     |
+          v                     v
+regras_associacao_        dm_vendas.
+  por_cluster.csv      regras_associacao
+   (Arquivo CSV)         (PostgreSQL)
 ```
 
 ---
 
 # 29. Conclusão
 
-O processo desenvolvido combina duas técnicas de mineração de dados de maneira sequencial.
+O projeto implementou com sucesso a integração entre **Data Warehouse Dimensional**, **Clusterização com K-Means** e **Mineração de Regras de Associação com Apriori** (técnica Ensemble não-supervisionada).
 
-Inicialmente, o **K-Means** é utilizado para identificar grupos de clientes com comportamentos semelhantes de compra. As características utilizadas representam aspectos como recência, frequência, valor financeiro e diversidade de produtos.
+A solução superou o desafio de granularidade da modelagem dimensional (item de venda vs. cesta de compras), unificou duas fontes transacionais heterogêneas sem conflito de identificadores e produziu **3.804 regras de associação consistentes**, armazenadas tanto em arquivo analítico quanto na tabela dimensional no PostgreSQL (`dm_vendas.regras_associacao`).
 
-Após a definição dos clusters, os clientes são associados às suas respectivas transações. Essas transações são então utilizadas como cestas de compra para aplicação do algoritmo **Apriori**.
-
-A etapa de Regras de Associação permite identificar quais produtos aparecem conjuntamente com maior frequência dentro de cada grupo de clientes.
-
-O resultado é uma análise mais direcionada:
-
-```text
-Comportamento dos clientes
-          ↓
-Segmentação
-          ↓
-Comportamento de compra por segmento
-          ↓
-Associações entre produtos
-```
-
-Assim, a solução atende ao objetivo do trabalho de utilizar os dados para **clusterizar/classificar clientes** e, a partir dos grupos obtidos, aplicar **Regras de Descoberta de Associação entre produtos**.
-
-A abordagem também demonstra a utilização prática do Data Warehouse e do Data Mart como base para técnicas de Data Mining, preservando a separação entre a camada de armazenamento/integração dos dados e a camada analítica executada em Python.
+Com isso, o Data Mart passa a disponibilizar não apenas relatórios históricos de vendas, mas também uma camada de inteligência prescritiva capaz de alimentar motores de recomendação e guiar decisões estratégicas de marketing e gestão de produtos.
