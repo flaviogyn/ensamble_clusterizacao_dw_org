@@ -28,6 +28,12 @@ DATABASE_URL = (
 engine = create_engine(DATABASE_URL)
 
 # ============================================================
+# 1.1 Criação de View e Tabelas
+# ============================================================
+# Arquivo SQL Analicts.sql
+
+
+# ============================================================
 # 2. LER OS DADOS DO DATA MART
 # ============================================================
 
@@ -43,7 +49,6 @@ SELECT
     categorias_distintas
 FROM dm_vendas.vw_cliente_clusterizacao
 """
-
 clientes = pd.read_sql(sql, engine)
 
 print("Quantidade de clientes:", len(clientes))
@@ -84,7 +89,6 @@ X = X.dropna()
 
 # Manter somente os clientes que permaneceram após o tratamento
 clientes = clientes.loc[X.index].copy()
-
 
 # ============================================================
 # 6. NORMALIZAÇÃO DOS DADOS

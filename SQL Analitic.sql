@@ -28,9 +28,9 @@ select df.nome as fornecedor,
 	   dp.produto,
 	   dp.categoria,
 	   fc.*
-  from fato_compras fc
-       inner join dim_fornecedor df on fc.id_fornecedor_dw = df.id_fornecedor_dw
-	   inner join dim_produto dp on fc.id_produto_dw = dp.id_produto_dw;
+  from dm_compras.fato_compras fc
+       inner join dm_compras.dim_fornecedor df on fc.id_fornecedor_dw = df.id_fornecedor_dw
+	   inner join dm_compras.dim_produto dp on fc.id_produto_dw = dp.id_produto_dw;
 
 
 -- Contagem de linhas e origem
@@ -311,6 +311,9 @@ INNER JOIN dw_organizacional.fato_vendas dw
 INNER JOIN dm_vendas.dim_produto dp
     ON dp.id_produto_dw = fv.id_produto_dw;
 
+-- Regras geradas de associação
+select *
+from dm_vendas.regras_associacao;
 
 SELECT *
 FROM dm_vendas.vw_compras_por_cluster
