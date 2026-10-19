@@ -511,6 +511,35 @@ CREATE INDEX IF NOT EXISTS ix_fato_estoque_tempo
 -- 3. DATA MART 1 - VENDAS
 -- STAR SCHEMA
 -- ============================================================
+CREATE TABLE IF NOT EXISTS dm_vendas.dim_dados_externos (
+    id_dados_externos_dw BIGINT PRIMARY KEY,
+    id_dado_externo VARCHAR(100),
+    indicador VARCHAR(100),
+    tipo_dado VARCHAR(50),
+    valor NUMERIC(18,6),
+    unidade VARCHAR(50),
+    data_referencia DATE
+);
+
+CREATE TABLE IF NOT EXISTS dm_vendas.fato_vendas (
+    id_fato_venda_dw BIGINT PRIMARY KEY,
+
+    id_tempo INTEGER NOT NULL,
+    id_cliente_dw BIGINT NOT NULL,
+    id_produto_dw BIGINT NOT NULL,
+    id_vendedor_dw BIGINT,
+    id_localizacao_dw BIGINT,
+
+    quantidade NUMERIC(18,4) NOT NULL,
+    valor_unitario NUMERIC(18,4) NOT NULL,
+    valor_bruto NUMERIC(18,4) NOT NULL,
+    valor_desconto NUMERIC(18,4) NOT NULL,
+    valor_liquido NUMERIC(18,4) NOT NULL,
+    frete NUMERIC(18,4),
+
+    id_origem_registro VARCHAR(100),
+    sistema_origem VARCHAR(50)
+);
 
 CREATE TABLE IF NOT EXISTS dm_vendas.dim_tempo (
     id_tempo INTEGER PRIMARY KEY,
@@ -566,35 +595,6 @@ CREATE TABLE IF NOT EXISTS dm_vendas.dim_localizacao (
     regiao VARCHAR(100)
 );
 
-CREATE TABLE IF NOT EXISTS dm_vendas.dim_dados_externos (
-    id_dados_externos_dw BIGINT PRIMARY KEY,
-    id_dado_externo VARCHAR(100),
-    indicador VARCHAR(100),
-    tipo_dado VARCHAR(50),
-    valor NUMERIC(18,6),
-    unidade VARCHAR(50),
-    data_referencia DATE
-);
-
-CREATE TABLE IF NOT EXISTS dm_vendas.fato_vendas (
-    id_fato_venda_dw BIGINT PRIMARY KEY,
-
-    id_tempo INTEGER NOT NULL,
-    id_cliente_dw BIGINT NOT NULL,
-    id_produto_dw BIGINT NOT NULL,
-    id_vendedor_dw BIGINT,
-    id_localizacao_dw BIGINT,
-
-    quantidade NUMERIC(18,4) NOT NULL,
-    valor_unitario NUMERIC(18,4) NOT NULL,
-    valor_bruto NUMERIC(18,4) NOT NULL,
-    valor_desconto NUMERIC(18,4) NOT NULL,
-    valor_liquido NUMERIC(18,4) NOT NULL,
-    frete NUMERIC(18,4),
-
-    id_origem_registro VARCHAR(100),
-    sistema_origem VARCHAR(50)
-);
 
 -- ============================================================
 -- 4. DATA MART 2 - COMPRAS
